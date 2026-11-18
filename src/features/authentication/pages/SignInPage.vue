@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useStaff } from '../staffAccess'
-import { db, errorMessage } from '@/lib/supabase/client'
+import { signIn, useStaff } from '../staffAccess'
+import { errorMessage } from '@/lib/api/client'
+import { safeNext } from '@/lib/safeNext'
 
 const route = useRoute()
 const router = useRouter()
-const { refresh, access } = useStaff()
+const { access } = useStaff()
 const email = ref('')
 const password = ref('')
 const error = ref<string | null>(null)
@@ -16,13 +17,10 @@ async function submit() {
   busy.value = true
   error.value = null
   try {
-    const { error: e } = await db().auth.signInWithPassword({ email: email.value.trim(), password: password.value })
-    if (e) throw e.status === 400 ? new Error('Email or password is incorrect.') : e
-    await refresh()
-    const next = typeof route.query.next === 'string' && /^\/(?![/\\])/.test(route.query.next) ? route.query.next : '/'
-    await router.replace(access.value === 'ok' ? next : '/no-access')
+    await signIn(email.value.trim(), password.value)
+    await router.replace(access.value === 'ok' ? safeNext(route.query.next, '/') : '/no-access')
   } catch (e) {
-    error.value = errorMessage(e)
+    error.value = errorMessage(e).replace('These credentials do not match our records.', 'Email or password is incorrect.')
   } finally {
     busy.value = false
   }
@@ -45,9 +43,7 @@ async function submit() {
           <label for="password">Password</label>
           <input id="password" v-model="password" type="password" class="input" autocomplete="current-password" required />
         </div>
-        <button type="submit" class="btn btn-primary" :disabled="busy || !email || !password" :aria-busy="busy">
-          {{ busy ? 'Signing in…' : 'Sign in' }}
-        </button>
+        <button type="submit" class="btn btn-primary" :disabled="busy || !email || !password" :aria-busy="busy">{{ busy ? 'Signing in…' : 'Sign in' }}</button>
       </form>
     </div>
   </div>

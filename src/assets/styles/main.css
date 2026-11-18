@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 @import '@fontsource-variable/archivo/wdth.css';
 
-/* Same tokens as the web app (Road-trip-web/docs/DESIGN_SYSTEM.md), kept as a copy so the apps stay independent. */
+/* Same tokens as the web app (web/docs/DESIGN_SYSTEM.md), kept as a copy so the apps stay independent. */
 @theme {
   --font-sans: 'Archivo Variable', ui-sans-serif, system-ui, sans-serif;
 

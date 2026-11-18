@@ -5,7 +5,10 @@ import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
-// https://vite.dev/config/
+// Staff SPA. It talks to the Laravel API in ../web through this proxy (same origin for cookies).
+// Production: serve this build on its own host and proxy /api and /sanctum to Laravel the same way.
+const api = { target: process.env.API_TARGET ?? 'http://127.0.0.1:8010', changeOrigin: false }
+
 export default defineConfig({
   plugins: [vue(), tailwindcss(), vueDevTools()],
   resolve: {
@@ -13,7 +16,6 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
-  // Web on 5180, admin on 5181, so both can run side by side.
-  server: { port: 5181, strictPort: true },
-  preview: { port: 4181, strictPort: true },
+  server: { port: 5181, strictPort: true, proxy: { '/api': api, '/sanctum': api } },
+  preview: { port: 4181, strictPort: true, proxy: { '/api': api, '/sanctum': api } },
 })

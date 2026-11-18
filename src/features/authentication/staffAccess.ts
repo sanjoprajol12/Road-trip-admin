@@ -1,50 +1,52 @@
 import { computed, ref } from 'vue'
-import type { Session } from '@supabase/supabase-js'
-import { db, supabase } from '@/lib/supabase/client'
+import { api, onUnauthorized } from '@/lib/api/client'
+import type { StaffRole, StaffUser } from '@/types/api'
 
-export type StaffRole = 'moderator' | 'admin'
+export type { StaffRole }
 export type Access = 'sign-in' | 'no-access' | 'ok'
 
-/** Route decision. Cosmetic only: RLS refuses staff data to anyone without a role row. */
-export function accessFor(session: Session | null, roles: StaffRole[]): Access {
-  if (!session) return 'sign-in'
-  return roles.length ? 'ok' : 'no-access'
+/** Route decision. Cosmetic only: every admin endpoint checks the role on the server. */
+export function accessFor(user: Pick<StaffUser, 'roles'> | null): Access {
+  if (!user) return 'sign-in'
+  return user.roles.length ? 'ok' : 'no-access'
 }
 
-const session = ref<Session | null>(null)
-const roles = ref<StaffRole[]>([])
+const user = ref<StaffUser | null>(null)
 let ready: Promise<void> | null = null
 
-async function loadRoles() {
-  if (!session.value) {
-    roles.value = []
-    return
+async function load() {
+  try {
+    user.value = (await api.get<{ data: StaffUser | null }>('/auth/session')).data.data
+  } catch {
+    user.value = null
   }
-  // RLS returns only the signed-in user's own role rows.
-  const { data, error } = await db().from('user_roles').select('role').eq('user_id', session.value.user.id)
-  roles.value = error ? [] : data.map((r) => r.role as StaffRole)
 }
+onUnauthorized(() => (user.value = null))
 
 export function initStaff(): Promise<void> {
-  ready ??= (async () => {
-    if (!supabase) return
-    session.value = (await supabase.auth.getSession()).data.session
-    await loadRoles()
-    supabase.auth.onAuthStateChange((_event, next) => {
-      const changedUser = next?.user.id !== session.value?.user.id
-      session.value = next
-      if (changedUser) void loadRoles()
-    })
-  })()
+  ready ??= load()
   return ready
+}
+
+export async function signIn(email: string, password: string) {
+  await api.post('/auth/login', { email, password })
+  await load()
+}
+
+export async function signOut() {
+  try {
+    await api.post('/auth/logout')
+  } finally {
+    user.value = null
+  }
 }
 
 export function useStaff() {
   return {
-    session,
-    roles,
-    access: computed(() => accessFor(session.value, roles.value)),
-    isAdmin: computed(() => roles.value.includes('admin')),
-    refresh: loadRoles,
+    user,
+    roles: computed(() => user.value?.roles ?? []),
+    access: computed(() => accessFor(user.value)),
+    isAdmin: computed(() => user.value?.roles.includes('admin') ?? false),
+    refresh: load,
   }
 }
