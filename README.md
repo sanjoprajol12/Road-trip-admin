@@ -1,54 +1,16 @@
-# rmn-admin
+# My Ride Nepal: admin
 
-This template should help get you started developing with Vue 3 in Vite.
+Staff application (moderators and administrators). Vue 3, TypeScript, Vite, Tailwind CSS 4, Supabase. Independent of the public site in `Road-trip-web`, which also holds the database migrations and all documentation (`Road-trip-web/docs/`).
 
-## Recommended IDE Setup
-
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
-
-## Recommended Browser Setup
-
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
-
-## Type Support for `.vue` Imports in TS
-
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
-
+## Setup
 ```sh
-npm install
+pnpm install
+cp .env.example .env.local     # same Supabase project as web, public anon key only
+pnpm dev                       # http://localhost:5181
 ```
 
-### Compile and Hot-Reload for Development
+## Access model
+Anyone can load this app; only accounts with a row in `user_roles` get past "No staff access", and the database (RLS) refuses staff data to everyone else regardless of what the app shows. There is no sign-up here. The first administrator is created with SQL (see `Road-trip-web/docs/USER_ROLES_AND_PERMISSIONS.md`).
 
-```sh
-npm run dev
-```
-
-### Type-Check, Compile and Minify for Production
-
-```sh
-npm run build
-```
-
-### Run Unit Tests with [Vitest](https://vitest.dev/)
-
-```sh
-npm run test:unit
-```
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
-npm run lint
-```
+## Scripts
+`pnpm dev`, `pnpm build`, `pnpm preview` (:4181), `pnpm type-check`, `pnpm lint`, `pnpm test:unit`.
