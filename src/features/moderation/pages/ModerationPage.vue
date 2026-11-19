@@ -3,9 +3,10 @@ import { reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Flag } from 'lucide-vue-next'
 import StatusLine from '@/components/ui/StatusLine.vue'
-import { api, errorMessage } from '@/lib/api/client'
+import { errorMessage } from '@/lib/api/client'
 import { formatDay } from '@/lib/format'
 import type { Contribution } from '@/types/api'
+import { decideContribution, listForModeration } from '../services/moderation'
 
 const statuses: Record<string, string> = {
   pending_review: 'Waiting for review', flagged: 'Flagged', published: 'Published', community_corroborated: 'Corroborated', officially_sourced: 'Officially sourced', outdated: 'Outdated', rejected: 'Rejected', all: 'All',
@@ -21,7 +22,7 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    items.value = (await api.get<{ data: Contribution[] }>('/admin/contributions', { params: { status: status.value } })).data.data
+    items.value = await listForModeration(status.value)
   } catch (e) {
     error.value = errorMessage(e)
   } finally {
@@ -37,7 +38,7 @@ async function decide(c: Contribution) {
   f.busy = true
   f.error = null
   try {
-    await api.post(`/admin/contributions/${c.id}/decision`, { status: f.status, moderation_note: f.note || null, source_url: f.source || null })
+    await decideContribution(c.id, { status: f.status, moderation_note: f.note || null, source_url: f.source || null })
     delete forms[c.id]
     await load()
   } catch (e) {

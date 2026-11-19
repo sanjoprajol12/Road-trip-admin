@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import StatusLine from '@/components/ui/StatusLine.vue'
-import { api, errorMessage, fieldErrors } from '@/lib/api/client'
+import { errorMessage, fieldErrors } from '@/lib/api/client'
 import { formatDay } from '@/lib/format'
 import type { Destination } from '@/types/api'
+import { listDestinations, saveDestination } from '../services/content'
 
 const provinces = ['Koshi', 'Madhesh', 'Bagmati', 'Gandaki', 'Lumbini', 'Karnali', 'Sudurpashchim']
 const list = ref<Destination[]>([])
@@ -13,7 +14,7 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    list.value = (await api.get<{ data: Destination[] }>('/admin/destinations')).data.data
+    list.value = await listDestinations()
   } catch (e) {
     error.value = errorMessage(e)
   } finally {
@@ -38,8 +39,7 @@ async function save() {
   saveError.value = null
   const body = Object.fromEntries(Object.entries(form).filter(([k]) => k !== 'id' && k !== 'is_dev_seed' && k !== 'updated_at').map(([k, v]) => [k, v === '' ? null : v]))
   try {
-    if (form.id) await api.patch(`/admin/destinations/${form.id}`, body)
-    else await api.post('/admin/destinations', body)
+    await saveDestination(form.id || null, body)
     editing.value = false
     await load()
   } catch (e) {

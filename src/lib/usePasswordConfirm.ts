@@ -29,7 +29,7 @@ export function usePasswordConfirm() {
 
   async function confirm() {
     try {
-      await api.post('/auth/confirm-password', { password: password.value })
+      await api.post('/admin/auth/confirm-password', { password: password.value })
       asking.value = false
       resume?.(true)
     } catch {

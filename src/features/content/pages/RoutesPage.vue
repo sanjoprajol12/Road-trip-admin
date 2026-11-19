@@ -2,9 +2,10 @@
 import { onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import StatusLine from '@/components/ui/StatusLine.vue'
-import { api, errorMessage, fieldErrors } from '@/lib/api/client'
+import { errorMessage, fieldErrors } from '@/lib/api/client'
 import { formatDay } from '@/lib/format'
 import type { RideRoute } from '@/types/api'
+import { createRoute, listRoutes } from '../services/content'
 
 const router = useRouter()
 const list = ref<RideRoute[]>([])
@@ -14,7 +15,7 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    list.value = (await api.get<{ data: RideRoute[] }>('/admin/routes')).data.data
+    list.value = await listRoutes()
   } catch (e) {
     error.value = errorMessage(e)
   } finally {
@@ -27,7 +28,7 @@ const errors = ref<Record<string, string>>({})
 async function create() {
   errors.value = {}
   try {
-    const { data } = await api.post<{ data: RideRoute }>('/admin/routes', { ...form, status: 'draft' })
+    const data = { data: await createRoute({ ...form, status: 'draft' }) }
     await router.push(`/routes/${data.data.id}`)
   } catch (e) {
     errors.value = fieldErrors(e)

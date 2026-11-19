@@ -3,8 +3,9 @@ import { onMounted, reactive, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ArrowDown, ArrowLeft, ArrowUp, Trash2 } from 'lucide-vue-next'
 import StatusLine from '@/components/ui/StatusLine.vue'
-import { api, errorMessage, fieldErrors } from '@/lib/api/client'
+import { errorMessage, fieldErrors } from '@/lib/api/client'
 import type { Destination, RideRoute, Segment } from '@/types/api'
+import { createServicePoint, deleteServicePoint, getRoute, listDestinations, replaceSegments, updateRoute } from '../services/content'
 
 const props = defineProps<{ id: string }>()
 const route = ref<RideRoute | null>(null)
@@ -26,9 +27,9 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    const [r, d] = await Promise.all([api.get<{ data: RideRoute }>(`/admin/routes/${props.id}`), api.get<{ data: Destination[] }>('/admin/destinations')])
-    fill(r.data.data)
-    destinations.value = d.data.data
+    const [r, d] = await Promise.all([getRoute(props.id), listDestinations()])
+    fill(r)
+    destinations.value = d
   } catch (e) {
     error.value = errorMessage(e)
   } finally {
@@ -41,7 +42,7 @@ async function saveDetails() {
   errors.value = {}
   msg.value = null
   try {
-    fill((await api.patch<{ data: RideRoute }>(`/admin/routes/${props.id}`, nul(details))).data.data)
+    fill(await updateRoute(props.id, nul(details)))
     msg.value = 'Route saved.'
   } catch (e) {
     errors.value = fieldErrors(e)
@@ -52,7 +53,7 @@ async function saveSegments() {
   errors.value = {}
   msg.value = null
   try {
-    fill((await api.put<{ data: RideRoute }>(`/admin/routes/${props.id}/segments`, { segments: segs.value.map((s) => nul(s)) })).data.data)
+    fill(await replaceSegments(props.id, segs.value.map((s) => nul(s))))
     msg.value = 'Segments saved. Existing segments kept their reports.'
   } catch (e) {
     errors.value = fieldErrors(e)
@@ -71,7 +72,7 @@ const svc = reactive({ segment: '', kind: 'fuel', name: '', notes: '', status: '
 async function addService() {
   msg.value = null
   try {
-    await api.post('/admin/service-points', { route_segment_id: svc.segment, kind: svc.kind, name: svc.name, notes: svc.notes || null, status: svc.status, last_confirmed_on: svc.last_confirmed_on || null })
+    await createServicePoint({ route_segment_id: svc.segment, kind: svc.kind, name: svc.name, notes: svc.notes || null, status: svc.status, last_confirmed_on: svc.last_confirmed_on || null })
     svc.name = ''
     svc.notes = ''
     await load()
@@ -82,7 +83,7 @@ async function addService() {
 }
 async function removeService(id: string) {
   try {
-    await api.delete(`/admin/service-points/${id}`)
+    await deleteServicePoint(id)
     await load()
   } catch (e) {
     msg.value = errorMessage(e)

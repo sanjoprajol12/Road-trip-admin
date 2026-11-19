@@ -4,26 +4,21 @@ import pluginVue from 'eslint-plugin-vue'
 import pluginVitest from '@vitest/eslint-plugin'
 import pluginOxlint from 'eslint-plugin-oxlint'
 
-// To allow more languages other than `ts` in `.vue` files, uncomment the following lines:
-// import { configureVueProject } from '@vue/eslint-config-typescript'
-// configureVueProject({ scriptLangs: ['ts', 'tsx'] })
-// More info at https://github.com/vuejs/eslint-config-typescript/#advanced-setup
-
 export default defineConfigWithVueTs(
-  {
-    name: 'app/files-to-lint',
-    files: ['**/*.{vue,ts,mts,tsx}'],
-  },
-
-  globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**']),
-
+  { name: 'app/files-to-lint', files: ['**/*.{vue,ts,mts,tsx}'] },
+  globalIgnores(['**/dist/**', '**/coverage/**', '**/test-results/**']),
   ...pluginVue.configs['flat/essential'],
   vueTsConfigs.recommended,
-
+  { ...pluginVitest.configs.recommended, files: ['src/**/__tests__/*'] },
+  // Pages talk to the API through their feature's services/ (or lib/), never directly.
   {
-    ...pluginVitest.configs.recommended,
-    files: ['src/**/__tests__/*'],
+    files: ['src/**/pages/**/*.vue', 'src/**/components/**/*.vue'],
+    rules: {
+      'no-restricted-imports': ['error', { paths: [
+        { name: 'axios', message: 'Use the feature service.' },
+        { name: '@/lib/api/client', importNames: ['api'], message: 'Call the API through the feature services/ (pages and components only use errorMessage, fieldErrors, statusOf).' },
+      ] }],
+    },
   },
-
   ...pluginOxlint.buildFromOxlintConfigFile('.oxlintrc.json'),
 )

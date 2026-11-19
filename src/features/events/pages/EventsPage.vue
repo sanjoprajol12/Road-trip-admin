@@ -2,9 +2,10 @@
 import { onMounted, ref } from 'vue'
 import StatusLine from '@/components/ui/StatusLine.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
-import { api, errorMessage } from '@/lib/api/client'
+import { errorMessage } from '@/lib/api/client'
 import { formatDayTime } from '@/lib/format'
-import type { Page, RideEvent } from '@/types/api'
+import type { RideEvent } from '@/types/api'
+import { cancelEvent, listEvents } from '../services/events'
 
 const list = ref<RideEvent[]>([])
 const loading = ref(true)
@@ -13,7 +14,7 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    list.value = (await api.get<Page<RideEvent>>('/admin/events')).data.data
+    list.value = await listEvents()
   } catch (e) {
     error.value = errorMessage(e)
   } finally {
@@ -27,7 +28,7 @@ const msg = ref<string | null>(null)
 async function cancel() {
   if (!target.value) return
   try {
-    await api.post(`/admin/events/${target.value.id}/cancel`, { reason: reason.value })
+    await cancelEvent(target.value.id, reason.value)
     msg.value = `${target.value.title} cancelled; participants were notified.`
     target.value = null
     await load()

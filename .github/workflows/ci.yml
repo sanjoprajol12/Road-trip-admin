@@ -4,6 +4,7 @@ on:
   push:
   pull_request:
 
+# Staff portal only. The public website and the Laravel API live in the Road-trip-web repo.
 env:
   NODE_VERSION: 24
   PNPM_VERSION: 12.16.1
@@ -11,7 +12,7 @@ env:
 
 jobs:
   checks:
-    name: Lint, types, unit tests, build
+    name: Lint, types, unit tests, build, audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,8 +21,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '${{ env.NODE_VERSION }}', cache: pnpm }
       - run: pnpm install --frozen-lockfile
-      - name: Lint (no autofix)
-        run: pnpm exec oxlint . && pnpm exec eslint .
+      - run: pnpm lint
       - run: pnpm type-check
       - run: pnpm test:unit
       - run: pnpm build-only
@@ -39,6 +39,9 @@ jobs:
         env: { POSTGRES_PASSWORD: postgres }
         ports: ['54322:5432']
         options: --health-cmd pg_isready --health-interval 5s --health-retries 20
+      mailpit:
+        image: axllent/mailpit:v1.31
+        ports: ['54324:8025', '54325:1025']
     steps:
       - uses: actions/checkout@v4
         with: { path: admin }
@@ -53,16 +56,16 @@ jobs:
         with: { version: '${{ env.PNPM_VERSION }}' }
       - uses: actions/setup-node@v4
         with: { node-version: '${{ env.NODE_VERSION }}' }
-      - name: Backend
+      - name: API and isolated E2E database
         working-directory: web
         run: |
           composer install --no-interaction --no-progress --prefer-dist
           cp .env.example .env
           php artisan key:generate
-          sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=$(openssl rand -hex 24)/; s/^DB_MIGRATION_PASSWORD=.*/DB_MIGRATION_PASSWORD=$(openssl rand -hex 24)/; s/^MAIL_MAILER=.*/MAIL_MAILER=log/" .env
+          sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=$(openssl rand -hex 24)/; s/^DB_MIGRATION_PASSWORD=.*/DB_MIGRATION_PASSWORD=$(openssl rand -hex 24)/" .env
           sh scripts/setup-local-db.sh
-          php artisan migrate --database=pgsql_owner --force
-          php artisan db:seed --force
+          DB_DATABASE=myridenepal_e2e php artisan migrate --database=pgsql_owner --force
+          DB_DATABASE=myridenepal_e2e php artisan db:seed --force
       - working-directory: admin
         run: pnpm install --frozen-lockfile && pnpm exec playwright install --with-deps chromium firefox webkit && pnpm test:e2e
       - uses: actions/upload-artifact@v4

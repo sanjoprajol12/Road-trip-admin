@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import StatusLine from '@/components/ui/StatusLine.vue'
-import { api, errorMessage, fieldErrors } from '@/lib/api/client'
+import { errorMessage, fieldErrors } from '@/lib/api/client'
 import { formatDay } from '@/lib/format'
 import type { Guide } from '@/types/api'
+import { listGuides, publishGuide, saveGuide } from '../services/guides'
 
 const categories: Record<Guide['category'], string> = { preparation: 'Preparing the trip', mechanical: 'Motorcycle and repairs', medical: 'First aid', road_safety: 'Road safety', weather: 'Weather', emergency: 'If something goes wrong' }
 const safety = new Set(['mechanical', 'medical', 'road_safety', 'emergency'])
@@ -15,7 +16,7 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    list.value = (await api.get<{ data: Guide[] }>('/admin/guides')).data.data
+    list.value = await listGuides()
   } catch (e) {
     error.value = errorMessage(e)
   } finally {
@@ -36,8 +37,7 @@ async function save() {
   errors.value = {}
   const { id, ...body } = form
   try {
-    if (id) await api.patch(`/admin/guides/${id}`, body)
-    else await api.post('/admin/guides', body)
+    await saveGuide(id ?? null, body)
     editing.value = false
     msg.value = safety.has(form.category) ? 'Saved. A verified expert in this field must review it before it can be published.' : 'Saved.'
     await load()
@@ -48,7 +48,7 @@ async function save() {
 }
 async function publish(g: Guide) {
   try {
-    await api.post(`/admin/guides/${g.id}/publish`)
+    await publishGuide(g.id)
     msg.value = `${g.title} is published.`
     await load()
   } catch (e) {

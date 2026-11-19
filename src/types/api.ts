@@ -1,16 +1,44 @@
 // Response shapes of the Laravel admin endpoints (web/app/Http/Controllers/Api/V1/Admin). Keep in step.
-export type StaffRole = 'moderator' | 'admin'
+/** A role slug: the built-in 'admin' and 'moderator', or a role staff created. */
+export type StaffRole = string
 export type VerificationKind = 'identity' | 'trip_contributor' | 'expert_reviewer' | 'event_organizer'
 export type VerificationStatus = 'pending' | 'approved' | 'rejected' | 'suspended' | 'revoked'
 export type PublishStatus = 'draft' | 'published' | 'archived'
 
+/** The signed-in staff account (its own account: never a rider account). */
 export interface StaffUser {
   id: string
   display_name: string
-  username: string | null
   email: string
   roles: StaffRole[]
-  suspended_until: string | null
+  /** What the UI may offer; the API checks each permission itself. */
+  permissions: string[]
+  rider_linked: boolean
+  last_login_at: string | null
+}
+
+export interface RoleRow {
+  slug: string
+  name: string
+  description: string | null
+  is_system: boolean
+  permissions: string[]
+  members: number
+}
+
+export interface PermissionRow {
+  key: string
+  module: string
+  action: string
+  description: string
+}
+
+export interface StaffInvitation {
+  id: string
+  email: string
+  roles: string[]
+  expires_at: string
+  created_at: string
 }
 
 export interface Page<T> {
@@ -50,17 +78,6 @@ export interface HistoryEntry {
   created_at: string
 }
 
-export interface PersonRow {
-  id: string
-  display_name: string
-  username: string | null
-  email: string | null
-  email_verified: boolean
-  roles: StaffRole[]
-  suspended_until: string | null
-  suspension_reason: string | null
-  joined_at: string
-}
 
 export interface AuditEntry {
   id: number

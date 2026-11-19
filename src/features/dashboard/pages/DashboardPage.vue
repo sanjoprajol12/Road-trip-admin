@@ -2,7 +2,8 @@
 import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import StatusLine from '@/components/ui/StatusLine.vue'
-import { api, errorMessage } from '@/lib/api/client'
+import { errorMessage } from '@/lib/api/client'
+import { getOverview } from '../services/overview'
 
 const counts = ref<{ label: string; value: number; hint: string; to?: string }[]>([])
 const error = ref<string | null>(null)
@@ -12,7 +13,7 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    const d = (await api.get<{ data: Record<string, number> }>('/admin/overview')).data.data
+    const d = await getOverview()
     counts.value = [
       { label: 'Verification requests waiting', value: d.verifications_pending ?? 0, hint: 'Organizer, trip contributor and expert claims', to: '/verification' },
       { label: 'Contributions waiting for review', value: d.contributions_pending ?? 0, hint: 'Road reports and rider experiences', to: '/moderation' },

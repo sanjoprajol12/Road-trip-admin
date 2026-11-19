@@ -6,9 +6,10 @@ import { decisionLabel, expertScopes, needsReason, reasonError, verificationKind
 import StatusLine from '@/components/ui/StatusLine.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import { useStaff } from '@/features/authentication/staffAccess'
-import { api, errorMessage, statusOf } from '@/lib/api/client'
+import { errorMessage, statusOf } from '@/lib/api/client'
 import { formatDay, formatDayTime } from '@/lib/format'
 import type { ClaimDetail, HistoryEntry } from '@/types/api'
+import { decideClaim, getClaim } from '../services/verifications'
 
 const props = defineProps<{ id: string }>()
 const { user } = useStaff()
@@ -21,7 +22,7 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    const { data } = await api.get<{ data: ClaimDetail; history: HistoryEntry[] }>(`/admin/verifications/${props.id}`)
+    const data = await getClaim<ClaimDetail, HistoryEntry>(props.id)
     claim.value = data.data
     history.value = data.history
   } catch (e) {
@@ -59,7 +60,7 @@ async function confirmDecision() {
   busy.value = true
   decideError.value = null
   try {
-    await api.post(`/admin/verifications/${claim.value.id}/decision`, { status: choice.value, review_note: note.value.trim() || null })
+    await decideClaim(claim.value.id, choice.value, note.value.trim() || null)
     confirming.value = false
     choice.value = null
     await load()

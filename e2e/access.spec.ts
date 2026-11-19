@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { createRider, grantRole, revokeRoles, sql } from './support/local'
+import { API_URL, createRider, createStaff, revokeStaffRoles, sql } from './support/local'
 
 const password = 'staff-check-2026'
 
@@ -16,23 +16,23 @@ test('signed-out visitors are sent to staff sign in', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Staff sign in' })).toBeVisible()
 })
 
-test('a rider account without a staff role gets no access', async ({ page }) => {
+test('a rider account is refused at staff sign in and gets no staff session', async ({ page }) => {
   const rider = await createRider('rider', password)
   await signIn(page, rider.email)
-  await expect(page).toHaveURL(/\/no-access$/)
-  await expect(page.getByRole('heading', { name: 'No staff access' })).toBeVisible()
-  await expect(page.getByText(rider.email)).toBeVisible()
-
-  // Typing an admin URL directly does not get past the guard either.
-  await page.goto('/')
-  await expect(page).toHaveURL(/\/no-access$/)
-  await page.getByRole('button', { name: 'Sign in with another account' }).click()
-  await expect(page).toHaveURL(/\/sign-in$/)
+  await expect(page.getByRole('alert')).toHaveText('Email or password is incorrect.')
+  await expect(page).toHaveURL(/\/sign-in/)
+  // The portal's own session check knows nobody, and typing a staff URL goes back to sign in.
+  const session = await page.request.get('/api/v1/admin/auth/session')
+  expect((await session.json()).data).toBeNull()
+  await page.goto('/riders')
+  await expect(page).toHaveURL(/\/sign-in/)
+  // The rider's credentials still work where they belong: the rider API (not this portal).
+  const riderLogin = await page.request.post(`${API_URL}/api/v1/auth/login`, { headers: { accept: 'application/json' }, data: { email: rider.email, password } })
+  expect(riderLogin.status()).not.toBe(422)
 })
 
 test('a moderator sees live counts; losing the role locks them out', async ({ page }) => {
-  const mod = await createRider('moderator', password)
-  grantRole(mod.id, 'moderator')
+  const mod = createStaff('moderator', password, 'moderator')
   await signIn(page, mod.email)
   await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible()
 
@@ -45,13 +45,13 @@ test('a moderator sees live counts; losing the role locks them out', async ({ pa
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible()
 
-  revokeRoles(mod.id)
+  revokeStaffRoles(mod.id)
   await page.reload()
   await expect(page).toHaveURL(/\/no-access$/)
 })
 
 test('wrong password is refused', async ({ page }) => {
-  const mod = await createRider('wrongpw', password)
+  const mod = createStaff('wrongpw', password, 'moderator')
   await page.goto('/sign-in')
   await page.getByLabel('Email').fill(mod.email)
   await page.getByLabel('Password').fill('not-it-at-all')

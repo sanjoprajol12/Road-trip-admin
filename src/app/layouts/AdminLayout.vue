@@ -1,27 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
-import { BadgeCheck, CalendarDays, LayoutDashboard, LogOut, MapPin, MessageSquareWarning, Route, ScrollText, ShieldHalf, Users } from 'lucide-vue-next'
+import { LogOut } from 'lucide-vue-next'
+import { navItems } from '@/app/navigation'
 import { staffRoleLabels } from '@/features/verification/rules'
 import { signOut, useStaff } from '@/features/authentication/staffAccess'
 
 const router = useRouter()
-const { user, roles, isAdmin } = useStaff()
+const { user, roles, can } = useStaff()
 
-// Admin-only items are hidden for moderators; the server refuses them anyway.
-const nav = computed(() =>
-  [
-    { to: '/', label: 'Overview', icon: LayoutDashboard },
-    { to: '/verification', label: 'Verification', icon: BadgeCheck },
-    { to: '/moderation', label: 'Moderation', icon: MessageSquareWarning },
-    { to: '/destinations', label: 'Destinations', icon: MapPin },
-    { to: '/routes', label: 'Routes', icon: Route },
-    { to: '/events', label: 'Events', icon: CalendarDays },
-    { to: '/guides', label: 'Guides', icon: ShieldHalf },
-    { to: '/people', label: 'People', icon: Users },
-    { to: '/audit', label: 'Audit log', icon: ScrollText, adminOnly: true },
-  ].filter((item) => !item.adminOnly || isAdmin.value),
-)
+// Items the signed-in person's permissions do not cover are hidden; the server refuses them anyway.
+const nav = computed(() => navItems.filter((item) => can(item.permission)))
 
 async function doSignOut() {
   await signOut()
@@ -52,7 +41,8 @@ async function doSignOut() {
       </nav>
       <div class="mt-auto hidden border-t border-night-line px-5 py-4 text-sm md:block">
         <p class="truncate text-night-text">{{ user?.email }}</p>
-        <p class="text-night-muted">{{ roles.map((r) => staffRoleLabels[r]).join(', ') }}</p>
+        <RouterLink to="/account" class="mt-2 block font-semibold text-night-muted hover:text-night-text">Your staff account</RouterLink>
+        <p class="text-night-muted">{{ roles.map((r) => staffRoleLabels[r] ?? r.replaceAll('_', ' ')).join(', ') }}</p>
         <button type="button" class="mt-3 flex items-center gap-2 font-semibold text-night-muted hover:text-night-text" @click="doSignOut"><LogOut class="size-4" aria-hidden="true" /> Sign out</button>
       </div>
     </aside>
