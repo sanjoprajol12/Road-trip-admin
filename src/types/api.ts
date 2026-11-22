@@ -1,16 +1,44 @@
 // Response shapes of the Laravel admin endpoints (web/app/Http/Controllers/Api/V1/Admin). Keep in step.
-export type StaffRole = 'moderator' | 'admin'
+/** A role slug: the built-in 'admin' and 'moderator', or a role staff created. */
+export type StaffRole = string
 export type VerificationKind = 'identity' | 'trip_contributor' | 'expert_reviewer' | 'event_organizer'
 export type VerificationStatus = 'pending' | 'approved' | 'rejected' | 'suspended' | 'revoked'
 export type PublishStatus = 'draft' | 'published' | 'archived'
 
+/** The signed-in staff account (its own account: never a rider account). */
 export interface StaffUser {
   id: string
   display_name: string
-  username: string | null
   email: string
   roles: StaffRole[]
-  suspended_until: string | null
+  /** What the UI may offer; the API checks each permission itself. */
+  permissions: string[]
+  rider_linked: boolean
+  last_login_at: string | null
+}
+
+export interface RoleRow {
+  slug: string
+  name: string
+  description: string | null
+  is_system: boolean
+  permissions: string[]
+  members: number
+}
+
+export interface PermissionRow {
+  key: string
+  module: string
+  action: string
+  description: string
+}
+
+export interface StaffInvitation {
+  id: string
+  email: string
+  roles: string[]
+  expires_at: string
+  created_at: string
 }
 
 export interface Page<T> {
@@ -50,17 +78,6 @@ export interface HistoryEntry {
   created_at: string
 }
 
-export interface PersonRow {
-  id: string
-  display_name: string
-  username: string | null
-  email: string | null
-  email_verified: boolean
-  roles: StaffRole[]
-  suspended_until: string | null
-  suspension_reason: string | null
-  joined_at: string
-}
 
 export interface AuditEntry {
   id: number
@@ -91,6 +108,7 @@ export interface Destination {
   status: PublishStatus
   last_confirmed_on: string | null
   is_dev_seed: boolean
+  sources?: Source[]
 }
 
 export interface ServicePoint {
@@ -113,6 +131,9 @@ export interface Segment {
   surface: 'paved' | 'mixed' | 'gravel' | 'dirt' | 'unknown'
   notes: string | null
   services: ServicePoint[]
+  /** Imported track [[lat, lng], ...] or null. */
+  path: [number, number][] | null
+  estimated_hours: number | null
 }
 
 export interface RideRoute {
@@ -127,6 +148,7 @@ export interface RideRoute {
   status: PublishStatus
   last_confirmed_on: string | null
   segments?: Segment[]
+  sources?: Source[]
 }
 
 export interface Contribution {
@@ -145,8 +167,32 @@ export interface Contribution {
   route?: { slug: string; name: string } | null
   segment?: { id: string; start_name: string; end_name: string } | null
   media?: { id: string; url: string; width: number; height: number; alt: string }[]
+  last_confirmed_on: string | null
+  author_correction: string | null
+  author_corrected_at: string | null
+  correction_pending_review?: boolean
+  correction_request?: string | null
+  sources?: Source[]
   open_reports?: number
-  reports?: { reason: string; created_at: string }[]
+  dangerous?: boolean
+  next_statuses?: string[]
+  reports?: { id: number; category: string; reason: string; created_at: string }[]
+}
+
+export interface Source {
+  id?: string
+  title: string
+  publisher: string | null
+  url: string | null
+  accessed_on: string | null
+}
+
+export interface ModerationEvent {
+  action: string
+  at: string
+  actor: string
+  actor_type: 'staff' | 'user'
+  note: string | null
 }
 
 export interface RideEvent {

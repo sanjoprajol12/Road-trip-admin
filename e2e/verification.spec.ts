@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { claimStatus, createClaim, createContribution, createRider, grantRole, sql } from './support/local'
+import { API_URL, claimStatus, createClaim, createContribution, createRider, createStaff, revokeStaffRoles, sql } from './support/local'
 
 const password = 'staff-review-2026'
 
@@ -15,8 +15,7 @@ test('moderators decide trip contributor claims but not organizer claims', async
   const rider = await createRider('applicant', password)
   const organizerClaim = createClaim(rider.id, 'event_organizer', 'Led weekend rides to Bandipur for two seasons.')
   const tripClaim = createClaim(rider.id, 'trip_contributor', 'Rode the Kaligandaki road to Jomsom in October.')
-  const mod = await createRider('mod', password)
-  grantRole(mod.id, 'moderator')
+  const mod = createStaff('mod', password, 'moderator')
   await signIn(page, mod.email)
 
   // Admin-only areas are hidden and unreachable for moderators.
@@ -43,8 +42,7 @@ test('moderators decide trip contributor claims but not organizer claims', async
 test('an administrator approves, suspends with a reason and reinstates an organizer', async ({ page }) => {
   const rider = await createRider('organizer', password)
   const claim = createClaim(rider.id, 'event_organizer', 'Organised the annual Pokhara rider meetup since 2022.')
-  const admin = await createRider('admin', password)
-  grantRole(admin.id, 'admin')
+  const admin = createStaff('admin', password, 'admin')
   await signIn(page, admin.email)
 
   await page.goto(`/verification/${claim}`)
@@ -76,20 +74,18 @@ test('an administrator approves, suspends with a reason and reinstates an organi
 })
 
 test('administrators manage staff roles (with password confirmation) and read the audit log', async ({ page }) => {
-  const person = await createRider('promote', password)
-  const admin = await createRider('roles-admin', password)
-  grantRole(admin.id, 'admin')
+  const person = createStaff('promote', password, 'moderator')
+  revokeStaffRoles(person.id) // a staff account without a role yet
+  const admin = createStaff('roles-admin', password, 'admin')
   await signIn(page, admin.email)
 
-  await page.getByRole('link', { name: 'People' }).click()
-  await page.getByLabel(/Find people/).fill(person.email)
-  await page.getByRole('button', { name: 'Search' }).click()
+  await page.getByRole('link', { name: 'Staff', exact: true }).click()
   const row = page.getByRole('row', { name: new RegExp(person.email) })
-  await expect(row.getByRole('cell', { name: 'Rider', exact: true })).toBeVisible()
+  await expect(row.getByRole('cell', { name: 'No role', exact: true })).toBeVisible()
 
   await row.getByRole('button', { name: /Make E2E promote moderator/ }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Give role' }).click()
-  // Role changes need the password again.
+  // Role changes need the staff password again.
   const confirm = page.getByRole('dialog').filter({ hasText: 'Confirm your password' })
   await confirm.getByLabel('Password').fill('wrong-password')
   await confirm.getByRole('button', { name: 'Confirm' }).click()
@@ -98,14 +94,14 @@ test('administrators manage staff roles (with password confirmation) and read th
   await confirm.getByRole('button', { name: 'Confirm' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'is now moderator' })).toHaveText('E2E promote is now moderator.')
   await expect(row.getByRole('cell', { name: 'Moderator', exact: true })).toBeVisible()
-  expect(sql(`select role from user_roles where user_id = '${person.id}'`)).toBe('moderator')
+  expect(sql(`select role from staff_account_roles where staff_account_id = '${person.id}'`)).toBe('moderator')
 
   await row.getByRole('button', { name: /Remove moderator role from E2E promote/ }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Remove role' }).click()
-  await expect(row.getByRole('cell', { name: 'Rider', exact: true })).toBeVisible()
+  await expect(row.getByRole('cell', { name: 'No role', exact: true })).toBeVisible()
 
   await page.getByRole('link', { name: 'Audit log' }).click()
-  await page.getByLabel('Show').selectOption('user_roles')
+  await page.getByLabel('Show').selectOption('staff_account_roles')
   const entries = page.getByRole('list', { name: 'Audit entries, newest first' })
   await expect(entries.getByText('role.removed').first()).toBeVisible()
   await expect(entries.getByText(/of E2E promote · by E2E roles-admin/).first()).toBeVisible()
@@ -114,8 +110,7 @@ test('administrators manage staff roles (with password confirmation) and read th
 test('a moderator publishes a pending contribution from the moderation queue', async ({ page }) => {
   const author = await createRider('author', password)
   const id = createContribution(author.id, 'E2E trip waiting for review')
-  const mod = await createRider('mod-pub', password)
-  grantRole(mod.id, 'moderator')
+  const mod = createStaff('mod-pub', password, 'moderator')
   await signIn(page, mod.email)
   await page.getByRole('link', { name: 'Moderation' }).click()
   const card = page.getByRole('listitem').filter({ hasText: 'E2E trip waiting for review' })
@@ -127,6 +122,37 @@ test('a moderator publishes a pending contribution from the moderation queue', a
   await card.getByRole('button', { name: 'Apply' }).click()
   await expect(page.getByText('E2E trip waiting for review')).toHaveCount(0)
   expect(sql(`select status from contributions where id = '${id}'`)).toBe('published')
-  const pub = await fetch(`http://127.0.0.1:8010/api/v1/contributions/${id}`, { headers: { accept: 'application/json' } })
+  const pub = await fetch(`${API_URL}/api/v1/contributions/${id}`, { headers: { accept: 'application/json' } })
   expect(pub.status).toBe(200)
+})
+
+test('a dangerous report leads the queue; the moderator dismisses it, asks for a correction and reads the history', async ({ page }) => {
+  const author = await createRider('author-trust', password)
+  const reporter = await createRider('reporter-trust', password)
+  const title = `E2E reported note ${Date.now()}`
+  const id = createContribution(author.id, title)
+  sql(`update contributions set status = 'published' where id = '${id}'`)
+  sql(`insert into contribution_reports (contribution_id, reporter_id, reason, category, created_at, updated_at) values ('${id}', '${reporter.id}', 'Sends riders across a flooded ford.', 'dangerous', now(), now())`)
+  const mod = createStaff('mod-trust', password, 'moderator')
+  await signIn(page, mod.email)
+  await page.goto('/moderation?status=published')
+  const first = page.getByRole('main').getByRole('list').first().locator(':scope > li').first()
+  await expect(first).toContainText(title)
+  await expect(first.getByText('Reported as dangerous')).toBeVisible()
+  // Published items cannot jump back to "waiting for review" or be corroborated by staff alone from here.
+  await expect(first.getByLabel('Decision').locator('option[value="pending_review"]')).toHaveCount(0)
+
+  await first.getByRole('button', { name: 'Dismiss report' }).click()
+  const card = page.getByRole('listitem').filter({ hasText: title })
+  await expect(card.getByText('Reported as dangerous')).toHaveCount(0)
+  expect(sql(`select resolution from contribution_reports where contribution_id = '${id}'`)).toBe('dismissed')
+
+  await card.getByRole('button', { name: 'Ask the author for a correction' }).click()
+  await card.getByLabel(/What should the author correct/).fill('Please say in which season the ford is safe.')
+  await card.getByRole('button', { name: 'Send request' }).click()
+  await expect(card.getByText('Correction asked for: Please say in which season')).toBeVisible()
+
+  await card.getByRole('button', { name: 'History' }).click()
+  await expect(card.getByText(/report dismissed/)).toBeVisible()
+  await expect(card.getByText(/correction requested/)).toBeVisible()
 })

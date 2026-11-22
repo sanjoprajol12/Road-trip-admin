@@ -8,6 +8,17 @@ export function formatDay(value: string | Date | null | undefined): string {
   return Number.isNaN(date.getTime()) ? '' : dayFormat.format(date)
 }
 
+/** "today", "3 days ago", "5 months ago": how old an observation is, for freshness labels. */
+export function ageInWords(value: string | Date, now = new Date()): string {
+  const days = Math.floor((now.getTime() - new Date(value).getTime()) / 86_400_000)
+  if (days < 1) return 'today'
+  if (days < 31) return days === 1 ? '1 day ago' : `${days} days ago`
+  const months = Math.floor(days / 30.44)
+  if (months < 12) return months === 1 ? '1 month ago' : `${months} months ago`
+  const years = Math.floor(months / 12)
+  return years === 1 ? '1 year ago' : `${years} years ago`
+}
+
 const timeFormat = new Intl.DateTimeFormat('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kathmandu' })
 
 /** "4 Nov 2026, 3:05 pm" in Nepal time, for audit trails and decisions. */

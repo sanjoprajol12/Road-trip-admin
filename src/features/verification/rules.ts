@@ -60,6 +60,7 @@ export const verificationStatusLabels: Record<VerificationStatus, string> = {
   revoked: 'Revoked',
 }
 
+/** Names of the built-in roles (other roles carry their own name from the API). */
 export const staffRoleLabels: Record<StaffRole, string> = {
   moderator: 'Moderator',
   admin: 'Administrator',

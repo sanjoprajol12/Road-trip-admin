@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import StatusLine from '@/components/ui/StatusLine.vue'
-import { api, errorMessage } from '@/lib/api/client'
+import { errorMessage } from '@/lib/api/client'
 import { formatDayTime } from '@/lib/format'
 import type { AuditEntry, Page } from '@/types/api'
+import { listAudit } from '../services/audit'
 
 const subjects: Record<string, string> = {
-  user_roles: 'Staff roles', user_verifications: 'Verification', users: 'Accounts', contributions: 'Contributions', destinations: 'Destinations', routes: 'Routes', events: 'Events', guides: 'Guides', service_points: 'Service points',
+  staff_account_roles: 'Staff roles', staff_accounts: 'Staff accounts', user_roles: 'Staff roles (before staff accounts)', user_verifications: 'Verification', users: 'Accounts', contributions: 'Contributions', destinations: 'Destinations', routes: 'Routes', events: 'Events', guides: 'Guides', service_points: 'Service points',
 }
 const subject = ref('')
 const page = ref(1)
@@ -17,7 +18,7 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    result.value = (await api.get<Page<AuditEntry>>('/admin/audit-logs', { params: { subject: subject.value || undefined, page: page.value } })).data
+    result.value = await listAudit<AuditEntry>({ subject: subject.value || undefined, page: page.value })
   } catch (e) {
     error.value = errorMessage(e)
   } finally {

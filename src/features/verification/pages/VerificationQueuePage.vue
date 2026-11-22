@@ -3,9 +3,10 @@ import { ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { expertScopes, verificationKindLabels, verificationStatusLabels, type ExpertScope, type VerificationKind, type VerificationStatus } from '../rules'
 import StatusLine from '@/components/ui/StatusLine.vue'
-import { api, errorMessage } from '@/lib/api/client'
+import { errorMessage } from '@/lib/api/client'
 import { formatDay } from '@/lib/format'
-import type { ClaimRow, Page } from '@/types/api'
+import type { ClaimRow } from '@/types/api'
+import { listClaims } from '../services/verifications'
 
 const route = useRoute()
 const router = useRouter()
@@ -22,7 +23,7 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    rows.value = (await api.get<Page<ClaimRow>>('/admin/verifications', { params: { status: status.value, kind: kind.value } })).data.data
+    rows.value = await listClaims<ClaimRow>({ status: status.value, kind: kind.value })
   } catch (e) {
     error.value = errorMessage(e)
   } finally {

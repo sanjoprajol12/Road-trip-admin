@@ -1,9 +1,8 @@
-// Copy of the web app's client (no shared code between repos). Change both together.
 import axios, { AxiosError } from 'axios'
 
 /**
- * One client for the Laravel API (/api/v1). Sanctum cookie sessions: the XSRF-TOKEN cookie is read
- * by axios and sent back as X-XSRF-TOKEN. No tokens are ever stored in localStorage.
+ * One client for the Laravel staff API (/api/v1/admin). Staff cookie session (its own cookie, never the rider one):
+ * the XSRF-TOKEN cookie is read by axios and sent back as X-XSRF-TOKEN. No tokens are ever stored in localStorage.
  */
 export const api = axios.create({
   baseURL: '/api/v1',
@@ -13,6 +12,8 @@ export const api = axios.create({
   timeout: 20_000,
 })
 
+// The staff session issues its own CSRF token; /sanctum/csrf-cookie would start a rider session instead.
+const CSRF_URL = '/api/v1/admin/auth/csrf-cookie'
 let csrfReady: Promise<unknown> | null = null
 const hasXsrfCookie = () => document.cookie.split('; ').some((c) => c.startsWith('XSRF-TOKEN='))
 
@@ -20,7 +21,7 @@ const hasXsrfCookie = () => document.cookie.split('; ').some((c) => c.startsWith
 api.interceptors.request.use(async (config) => {
   const method = (config.method ?? 'get').toLowerCase()
   if (method !== 'get' && !hasXsrfCookie()) {
-    csrfReady ??= axios.get('/sanctum/csrf-cookie', { withCredentials: true }).finally(() => (csrfReady = null))
+    csrfReady ??= axios.get(CSRF_URL, { withCredentials: true }).finally(() => (csrfReady = null))
     await csrfReady
   }
   return config
@@ -37,9 +38,9 @@ api.interceptors.response.use(undefined, (error: AxiosError) => {
   const config = error.config as (typeof error.config & { _retried?: boolean }) | undefined
   if (error.response?.status === 419 && config && !config._retried) {
     config._retried = true
-    return axios.get('/sanctum/csrf-cookie', { withCredentials: true }).then(() => api.request(config))
+    return axios.get(CSRF_URL, { withCredentials: true }).then(() => api.request(config))
   }
-  if (error.response?.status === 401 && !config?.url?.startsWith('/auth/')) unauthorizedListeners.forEach((fn) => fn())
+  if (error.response?.status === 401 && !config?.url?.startsWith('/admin/auth/')) unauthorizedListeners.forEach((fn) => fn())
   return Promise.reject(error)
 })
 
