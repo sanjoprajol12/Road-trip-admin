@@ -62,10 +62,10 @@ async function removeLink() {
       <form class="mt-4 grid gap-4" novalidate @submit.prevent="savePassword">
         <p v-if="pwErrors._" class="text-sm text-danger" role="alert">{{ pwErrors._ }}</p>
         <div class="field"><label for="cur">Current staff password</label><input id="cur" v-model="pwForm.current_password" type="password" class="input" autocomplete="current-password" :aria-invalid="!!pwErrors.current_password" /><p v-if="pwErrors.current_password" class="field-error">{{ pwErrors.current_password }}</p></div>
-        <div class="field"><label for="new">New staff password <span class="font-normal text-muted">(at least 12 characters)</span></label><input id="new" v-model="pwForm.password" type="password" class="input" autocomplete="new-password" :aria-invalid="!!pwErrors.password" /><p v-if="pwErrors.password" class="field-error">{{ pwErrors.password }}</p></div>
+        <div class="field"><label for="new">New staff password <span class="font-normal text-muted">(at least 8 characters)</span></label><input id="new" v-model="pwForm.password" type="password" class="input" autocomplete="new-password" :aria-invalid="!!pwErrors.password" /><p v-if="pwErrors.password" class="field-error">{{ pwErrors.password }}</p></div>
         <div class="field"><label for="new2">Repeat it</label><input id="new2" v-model="pwForm.password_confirmation" type="password" class="input" autocomplete="new-password" /></div>
         <div class="flex items-center gap-3">
-          <button type="submit" class="btn btn-primary" :disabled="!pwForm.current_password || pwForm.password.length < 12">Change password</button>
+          <button type="submit" class="btn btn-primary" :disabled="!pwForm.current_password || pwForm.password.length < 8">Change password</button>
           <span v-if="pwDone" class="text-sm text-success" role="status">{{ pwDone }}</span>
         </div>
       </form>

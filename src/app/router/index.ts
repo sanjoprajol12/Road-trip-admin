@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { initStaff, useStaff } from '@/features/authentication/staffAccess'
-import { navItems, settingsPermissions } from '@/app/navigation'
+import { cmsPermissions, navItems, settingsPermissions } from '@/app/navigation'
 import { settingsGroups } from '@/features/settings/settingsGroups'
 
 const settingsPages = {
@@ -13,6 +13,10 @@ const settingsPages = {
   seo: () => import('@/features/settings/pages/SeoSettingsPage.vue'),
   footer: () => import('@/features/settings/pages/FooterSettingsPage.vue'),
   system: () => import('@/features/settings/pages/SystemSettingsPage.vue'),
+  mail: () => import('@/features/settings/pages/MailSettingsPage.vue'),
+  maps: () => import('@/features/settings/pages/MapSettingsPage.vue'),
+  security: () => import('@/features/settings/pages/SecuritySettingsPage.vue'),
+  trust: () => import('@/features/settings/pages/TrustSettingsPage.vue'),
 } satisfies Record<(typeof settingsGroups)[number]['path'], () => Promise<unknown>>
 
 declare module 'vue-router' {
@@ -77,6 +81,9 @@ const router = createRouter({
         { path: 'audit', name: 'audit', component: () => import('@/features/audit/pages/AuditLogPage.vue'), meta: { title: 'Audit log', permission: 'audit.view' } },
         { path: 'cms/home', name: 'cms-home', component: () => import('@/features/cms/home/pages/HomeContentPage.vue'), meta: { title: 'Homepage', permission: 'cms.home.edit' } },
         { path: 'cms/menus', name: 'cms-menus', component: () => import('@/features/cms/menus/pages/MenusPage.vue'), meta: { title: 'Menus', permission: 'cms.menus.manage' } },
+        { path: 'cms/content/:type?', name: 'cms-content', component: () => import('@/features/cms/content/pages/ContentPage.vue'), meta: { title: 'Content', permission: cmsPermissions } },
+        { path: 'places', name: 'places', component: () => import('@/features/places/pages/PlacesPage.vue'), meta: { title: 'Places', permission: ['places.manage', 'places.review'] } },
+        { path: 'contact', name: 'contact', component: () => import('@/features/contact/pages/InboxPage.vue'), meta: { title: 'Contact messages', permission: 'contact.view' } },
         { path: 'cms/notices', name: 'cms-notices', component: () => import('@/features/cms/notices/pages/NoticesPage.vue'), meta: { title: 'Notices', permission: 'cms.notices.manage' } },
         { path: 'media', name: 'media', component: () => import('@/features/media/pages/MediaPage.vue'), meta: { title: 'Media', permission: 'media.manage' } },
         {

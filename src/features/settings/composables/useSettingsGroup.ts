@@ -3,7 +3,9 @@ import { errorMessage, fieldErrors } from '@/lib/api/client'
 import { getGroup, saveGroup, type SettingsValues } from '../services/settings'
 
 /** Load, edit and save one settings group. The server validates; field errors come back from its 422. */
-export function useSettingsGroup(group: string) {
+export function useSettingsGroup(group: string, secrets: readonly string[] = []) {
+  // Secret fields come back as { set: boolean }. They are sent only when typed in (or cleared on purpose).
+  const secretInput = reactive<Record<string, { value: string; clear: boolean }>>(Object.fromEntries(secrets.map((k) => [k, { value: '', clear: false }])))
   const values = reactive<SettingsValues>({})
   const errors = ref<Record<string, string>>({})
   const saved = ref<string | null>(null)
@@ -26,7 +28,14 @@ export function useSettingsGroup(group: string) {
     saved.value = null
     saving.value = true
     try {
-      Object.assign(values, await saveGroup(group, { ...values }))
+      const body: SettingsValues = { ...values }
+      for (const k of secrets) {
+        delete body[k]
+        if (secretInput[k]!.clear) body[k] = null
+        else if (secretInput[k]!.value) body[k] = secretInput[k]!.value
+      }
+      Object.assign(values, await saveGroup(group, body))
+      for (const k of secrets) Object.assign(secretInput[k]!, { value: '', clear: false })
       saved.value = 'Saved.'
     } catch (e) {
       errors.value = fieldErrors(e)
@@ -36,5 +45,5 @@ export function useSettingsGroup(group: string) {
     }
   }
 
-  return { values, errors, saved, loading, loadError, saving, save }
+  return { values, errors, saved, loading, loadError, saving, save, secretInput }
 }

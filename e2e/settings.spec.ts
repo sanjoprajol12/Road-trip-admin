@@ -88,3 +88,37 @@ test('the media library needs a credit and an allowed licence, then serves the i
   await expect(page.getByRole('status').filter({ hasText: 'Image deleted.' })).toBeVisible()
   expect(sql(`select count(*) from media_assets where alt = '${alt}'`)).toBe('0')
 })
+
+test('a mail password is stored but never shown again; a moderator pauses a rider\'s contributions', async ({ page }, info) => {
+  const admin = createStaff(`mail-${info.project.name}`, password, 'admin')
+  try {
+    await signIn(page, admin.email)
+    await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible()
+    await page.goto('/settings/mail')
+    await page.getByLabel(/^Password/).fill('e2e-not-a-real-password')
+    await page.getByRole('button', { name: 'Save mail settings' }).click()
+    await expect(page.getByText('Saved.')).toBeVisible()
+    await page.reload()
+    await expect(page.getByLabel(/^Password/)).toHaveValue('')
+    await expect(page.getByText('(stored, hidden)')).toBeVisible()
+    expect(sql(`select coalesce(value::text, '') || coalesce(secret, '') from settings where key = 'mail.password'`)).not.toContain('e2e-not-a-real-password')
+  } finally {
+    sql(`delete from settings where key like 'mail.%'`)
+    sql(`delete from cache where key like '%mrn.settings'`)
+  }
+
+  const rider = sql(`insert into users (id, display_name, username, email, password, email_verified_at, created_at, updated_at)
+    values (gen_random_uuid(), 'E2E Paused ${info.project.name}', null, 'paused-${info.project.name}-${Date.now()}@e2e.test', 'x', now(), now(), now()) returning id`)
+  await page.goto('/riders')
+  await page.getByLabel(/^Find riders/).fill(`E2E Paused ${info.project.name}`)
+  await page.getByLabel(/^Find riders/).press('Enter')
+  await page.getByRole('button', { name: `Pause contributions of E2E Paused ${info.project.name}` }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByLabel('Until').fill(new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10))
+  await dialog.getByLabel(/^Reason/).fill('Several misleading reports in one week.')
+  await dialog.getByRole('button', { name: 'Pause contributions' }).click()
+  await expect(page.getByText(/cannot contribute until/)).toBeVisible()
+  await expect(page.getByRole('cell', { name: /Contributions paused until/ })).toBeVisible()
+  expect(sql(`select count(*) from contribution_suspensions where user_id = '${rider}' and lifted_at is null`)).toBe('1')
+  sql(`delete from users where id = '${rider}'`)
+})

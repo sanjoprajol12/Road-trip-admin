@@ -125,3 +125,34 @@ test('a moderator publishes a pending contribution from the moderation queue', a
   const pub = await fetch(`${API_URL}/api/v1/contributions/${id}`, { headers: { accept: 'application/json' } })
   expect(pub.status).toBe(200)
 })
+
+test('a dangerous report leads the queue; the moderator dismisses it, asks for a correction and reads the history', async ({ page }) => {
+  const author = await createRider('author-trust', password)
+  const reporter = await createRider('reporter-trust', password)
+  const title = `E2E reported note ${Date.now()}`
+  const id = createContribution(author.id, title)
+  sql(`update contributions set status = 'published' where id = '${id}'`)
+  sql(`insert into contribution_reports (contribution_id, reporter_id, reason, category, created_at, updated_at) values ('${id}', '${reporter.id}', 'Sends riders across a flooded ford.', 'dangerous', now(), now())`)
+  const mod = createStaff('mod-trust', password, 'moderator')
+  await signIn(page, mod.email)
+  await page.goto('/moderation?status=published')
+  const first = page.getByRole('main').getByRole('list').first().locator(':scope > li').first()
+  await expect(first).toContainText(title)
+  await expect(first.getByText('Reported as dangerous')).toBeVisible()
+  // Published items cannot jump back to "waiting for review" or be corroborated by staff alone from here.
+  await expect(first.getByLabel('Decision').locator('option[value="pending_review"]')).toHaveCount(0)
+
+  await first.getByRole('button', { name: 'Dismiss report' }).click()
+  const card = page.getByRole('listitem').filter({ hasText: title })
+  await expect(card.getByText('Reported as dangerous')).toHaveCount(0)
+  expect(sql(`select resolution from contribution_reports where contribution_id = '${id}'`)).toBe('dismissed')
+
+  await card.getByRole('button', { name: 'Ask the author for a correction' }).click()
+  await card.getByLabel(/What should the author correct/).fill('Please say in which season the ford is safe.')
+  await card.getByRole('button', { name: 'Send request' }).click()
+  await expect(card.getByText('Correction asked for: Please say in which season')).toBeVisible()
+
+  await card.getByRole('button', { name: 'History' }).click()
+  await expect(card.getByText(/report dismissed/)).toBeVisible()
+  await expect(card.getByText(/correction requested/)).toBeVisible()
+})

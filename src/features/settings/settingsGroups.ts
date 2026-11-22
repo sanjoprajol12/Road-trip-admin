@@ -8,5 +8,9 @@ export const settingsGroups = [
   { path: 'seo', label: 'SEO', permission: 'settings.seo.manage' },
   { path: 'footer', label: 'Footer', permission: 'settings.footer.manage' },
   { path: 'storage', label: 'Storage and uploads', permission: 'settings.storage.manage' },
+  { path: 'mail', label: 'Mail', permission: 'settings.mail.manage' },
+  { path: 'maps', label: 'Maps', permission: 'settings.maps.manage' },
+  { path: 'security', label: 'Security', permission: 'settings.security.manage' },
+  { path: 'trust', label: 'Trust', permission: 'settings.trust.manage' },
   { path: 'system', label: 'System', permission: 'system.cache.manage' },
 ] as const

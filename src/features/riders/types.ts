@@ -10,4 +10,8 @@ export interface RiderRow {
   suspended_until: string | null
   suspension_reason: string | null
   joined_at: string
+  /** Repeat-offender signal: contributions rejected, and currently flagged. */
+  offences: { rejected: number; flagged: number }
+  /** Contribution-only pause (separate from account suspension), with the rider's appeal if any. */
+  contribution_suspension: { until: string; reason: string; appeal: string | null; appealed_at: string | null; appeal_decision: string | null } | null
 }

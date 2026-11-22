@@ -62,7 +62,7 @@ async function submit() {
           <p v-if="errors.display_name" class="field-error">{{ errors.display_name }}</p>
         </div>
         <div class="field">
-          <label for="password">{{ hasAccount ? 'Your current staff password' : 'Choose a staff password (at least 12 characters)' }}</label>
+          <label for="password">{{ hasAccount ? 'Your current staff password' : 'Choose a staff password (at least 8 characters)' }}</label>
           <input id="password" v-model="password" type="password" class="input" :autocomplete="hasAccount ? 'current-password' : 'new-password'" :aria-invalid="!!errors.password" />
           <p v-if="errors.password" class="field-error">{{ errors.password }}</p>
         </div>

@@ -8,3 +8,5 @@ export const liftSuspension = (id: string) => api.delete(`/admin/users/${id}/sus
 export const setRiderActive = (id: string, active: boolean, reason: string | null) => api.post(`/admin/users/${id}/activation`, { active, reason })
 export const sendRiderReset = (id: string) => api.post(`/admin/users/${id}/password-reset`)
 export const revokeRiderSessions = async (id: string) => (await api.delete<{ revoked: number }>(`/admin/users/${id}/sessions`)).data.revoked
+export const pauseContributions = (id: string, until: string, reason: string) => api.post(`/admin/users/${id}/contribution-suspension`, { until, reason })
+export const reviewContributionPause = (id: string, decision: 'lifted' | 'upheld', note: string) => api.post(`/admin/users/${id}/contribution-suspension/review`, { decision, note })

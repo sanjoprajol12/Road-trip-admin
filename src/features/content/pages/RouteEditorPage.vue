@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, toRaw } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ArrowDown, ArrowLeft, ArrowUp, Trash2 } from 'lucide-vue-next'
 import StatusLine from '@/components/ui/StatusLine.vue'
 import { errorMessage, fieldErrors } from '@/lib/api/client'
-import type { Destination, RideRoute, Segment } from '@/types/api'
-import { createServicePoint, deleteServicePoint, getRoute, listDestinations, replaceSegments, updateRoute } from '../services/content'
+import type { Destination, RideRoute, Segment, Source } from '@/types/api'
+import SourcesEditor from '../components/SourcesEditor.vue'
+import { createServicePoint, deleteServicePoint, getRoute, importSegmentPath, listDestinations, removeSegmentPath, replaceSegments, updateRoute } from '../services/content'
 
 const props = defineProps<{ id: string }>()
 const route = ref<RideRoute | null>(null)
@@ -14,14 +15,16 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const msg = ref<string | null>(null)
 const details = reactive({ name: '', slug: '', summary: '', start_destination_id: '', end_destination_id: '', distance_km: '', estimated_hours: '', status: 'draft', last_confirmed_on: '' })
-type SegRow = { id: string | null; start_name: string; end_name: string; start_lat: string; start_lng: string; end_lat: string; end_lng: string; distance_km: string; surface: Segment['surface']; notes: string }
+type SegRow = { id: string | null; start_name: string; end_name: string; start_lat: string; start_lng: string; end_lat: string; end_lng: string; distance_km: string; estimated_hours: string; surface: Segment['surface']; notes: string }
 const segs = ref<SegRow[]>([])
 const errors = ref<Record<string, string>>({})
+const sources = ref<Source[]>([])
 
 function fill(r: RideRoute) {
   route.value = r
   Object.assign(details, { name: r.name, slug: r.slug, summary: r.summary ?? '', start_destination_id: r.start?.id ?? '', end_destination_id: r.end?.id ?? '', distance_km: r.distance_km ?? '', estimated_hours: r.estimated_hours ?? '', status: r.status, last_confirmed_on: r.last_confirmed_on ?? '' })
-  segs.value = (r.segments ?? []).map((s) => ({ id: s.id, start_name: s.start_name, end_name: s.end_name, start_lat: String(s.start?.[0] ?? ''), start_lng: String(s.start?.[1] ?? ''), end_lat: String(s.end?.[0] ?? ''), end_lng: String(s.end?.[1] ?? ''), distance_km: String(s.distance_km ?? ''), surface: s.surface, notes: s.notes ?? '' }))
+  sources.value = structuredClone(toRaw(r.sources ?? []))
+  segs.value = (r.segments ?? []).map((s) => ({ id: s.id, start_name: s.start_name, end_name: s.end_name, start_lat: String(s.start?.[0] ?? ''), start_lng: String(s.start?.[1] ?? ''), end_lat: String(s.end?.[0] ?? ''), end_lng: String(s.end?.[1] ?? ''), distance_km: String(s.distance_km ?? ''), estimated_hours: String(s.estimated_hours ?? ''), surface: s.surface, notes: s.notes ?? '' }))
 }
 async function load() {
   loading.value = true
@@ -37,12 +40,34 @@ async function load() {
   }
 }
 onMounted(load)
+const trackPoints = (id: string) => route.value?.segments?.find((x) => x.id === id)?.path?.length ?? 0
+async function importTrack(id: string, e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  msg.value = null
+  try {
+    fill(await importSegmentPath(id, file))
+    msg.value = `Track imported: ${trackPoints(id)} points.`
+  } catch (err) {
+    msg.value = fieldErrors(err).track ?? errorMessage(err)
+  } finally {
+    ;(e.target as HTMLInputElement).value = ''
+  }
+}
+async function dropTrack(id: string) {
+  try {
+    fill(await removeSegmentPath(id))
+    msg.value = 'Track removed.'
+  } catch (err) {
+    msg.value = errorMessage(err)
+  }
+}
 const nul = (o: Record<string, unknown>) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v === '' ? null : v]))
 async function saveDetails() {
   errors.value = {}
   msg.value = null
   try {
-    fill(await updateRoute(props.id, nul(details)))
+    fill(await updateRoute(props.id, { ...nul(details), sources: sources.value.map((s) => ({ ...s, publisher: s.publisher || null, url: s.url || null, accessed_on: s.accessed_on || null })) }))
     msg.value = 'Route saved.'
   } catch (e) {
     errors.value = fieldErrors(e)
@@ -66,7 +91,10 @@ const move = (i: number, d: number) => {
   if (j < 0 || j >= a.length) return
   ;[a[i], a[j]] = [a[j]!, a[i]!]
 }
-const addSeg = () => segs.value.push({ id: null, start_name: segs.value.at(-1)?.end_name ?? '', end_name: '', start_lat: '', start_lng: '', end_lat: '', end_lng: '', distance_km: '', surface: 'unknown', notes: '' })
+// B4: the route total is entered separately; flag it when it disagrees with the segments by more than 5 %.
+const segmentKm = computed(() => (segs.value.length && segs.value.every((s) => s.distance_km !== '') ? Math.round(segs.value.reduce((t, s) => t + Number(s.distance_km), 0) * 10) / 10 : null))
+const distanceMismatch = computed(() => segmentKm.value !== null && details.distance_km !== '' && Math.abs(segmentKm.value - Number(details.distance_km)) > Number(details.distance_km) * 0.05)
+const addSeg = () => segs.value.push({ id: null, start_name: segs.value.at(-1)?.end_name ?? '', end_name: '', start_lat: '', start_lng: '', end_lat: '', end_lng: '', distance_km: '', estimated_hours: '', surface: 'unknown', notes: '' })
 
 const svc = reactive({ segment: '', kind: 'fuel', name: '', notes: '', status: 'draft', last_confirmed_on: '' })
 async function addService() {
@@ -110,6 +138,7 @@ async function removeService(id: string) {
         <div class="field"><label for="rk">Distance (km)</label><input id="rk" v-model="details.distance_km" type="number" step="0.1" class="input" /></div>
         <div class="field"><label for="rh">Riding time (h)</label><input id="rh" v-model="details.estimated_hours" type="number" step="0.1" class="input" /></div>
         <div class="field md:col-span-3"><label for="rsum">Summary</label><input id="rsum" v-model="details.summary" class="input" maxlength="400" /></div>
+        <SourcesEditor v-model="sources" class="md:col-span-3" :errors="errors" id-prefix="r-src" />
         <button type="submit" class="btn btn-primary justify-self-start">Save route</button>
       </form>
 
@@ -119,6 +148,11 @@ async function removeService(id: string) {
         <ol class="mt-4 grid gap-4">
           <li v-for="(s, i) in segs" :key="s.id ?? `new-${i}`" class="grid gap-3 rounded-md border border-line bg-surface p-4 md:grid-cols-6">
             <p class="font-semibold md:col-span-6">Segment {{ i + 1 }}<span v-if="!s.id" class="text-muted"> (new)</span></p>
+            <div v-if="s.id" class="flex flex-wrap items-center gap-3 text-sm md:col-span-6">
+              <span>{{ trackPoints(s.id) ? `Recorded track: ${trackPoints(s.id)} points (drawn on maps)` : 'No recorded track: maps show checkpoints only' }}</span>
+              <label class="btn btn-quiet min-h-9 cursor-pointer px-3"><input type="file" accept=".gpx,.geojson,.json" class="sr-only" :aria-label="`Import a GPX or GeoJSON track for segment ${i + 1}`" @change="importTrack(s.id, $event)" />Import track</label>
+              <button v-if="trackPoints(s.id)" type="button" class="link" @click="dropTrack(s.id)">Remove track</button>
+            </div>
             <div class="field md:col-span-3"><label :for="`sa-${i}`">From checkpoint</label><input :id="`sa-${i}`" v-model="s.start_name" class="input" /></div>
             <div class="field md:col-span-3"><label :for="`sb-${i}`">To checkpoint</label><input :id="`sb-${i}`" v-model="s.end_name" class="input" /></div>
             <div class="field"><label :for="`sla-${i}`">From lat</label><input :id="`sla-${i}`" v-model="s.start_lat" class="input" inputmode="decimal" /></div>
@@ -126,6 +160,7 @@ async function removeService(id: string) {
             <div class="field"><label :for="`ela-${i}`">To lat</label><input :id="`ela-${i}`" v-model="s.end_lat" class="input" inputmode="decimal" /></div>
             <div class="field"><label :for="`eln-${i}`">To lng</label><input :id="`eln-${i}`" v-model="s.end_lng" class="input" inputmode="decimal" /></div>
             <div class="field"><label :for="`sd-${i}`">Distance (km)</label><input :id="`sd-${i}`" v-model="s.distance_km" class="input" inputmode="decimal" /></div>
+            <div class="field"><label :for="`sh-${i}`">Riding time (h, estimate)</label><input :id="`sh-${i}`" v-model="s.estimated_hours" class="input" inputmode="decimal" /><p v-if="errors[`segments.${i}.estimated_hours`]" class="field-error">{{ errors[`segments.${i}.estimated_hours`] }}</p></div>
             <div class="field"><label :for="`ss-${i}`">Surface</label><select :id="`ss-${i}`" v-model="s.surface" class="input"><option v-for="x in ['paved', 'mixed', 'gravel', 'dirt', 'unknown']" :key="x" :value="x">{{ x }}</option></select></div>
             <div class="field md:col-span-6"><label :for="`sn-${i}`">Notes</label><input :id="`sn-${i}`" v-model="s.notes" class="input" /></div>
             <div class="flex gap-2 md:col-span-6">
@@ -138,6 +173,7 @@ async function removeService(id: string) {
             </ul>
           </li>
         </ol>
+        <p v-if="distanceMismatch" class="mt-4 text-sm text-warning" role="status">The segments add up to {{ segmentKm }} km, but the route total is {{ details.distance_km }} km. Check both before publishing.</p>
         <div class="mt-4 flex gap-2"><button type="button" class="btn btn-quiet" @click="addSeg">Add segment</button><button type="button" class="btn btn-primary" @click="saveSegments">Save segments</button></div>
       </section>
 

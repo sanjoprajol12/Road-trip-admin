@@ -47,12 +47,12 @@ async function submit() {
         <p class="text-sm text-muted">For the staff account <span class="font-semibold text-ink">{{ email }}</span>.</p>
         <p v-if="error" role="alert" class="rounded-md border border-danger/40 bg-crimson-wash px-4 py-3 text-sm text-danger">{{ error }} <RouterLink to="/forgot-password" class="link font-semibold">Ask for a new link</RouterLink>.</p>
         <div class="field">
-          <label for="pw">New staff password <span class="font-normal text-muted">(at least 12 characters)</span></label>
+          <label for="pw">New staff password <span class="font-normal text-muted">(at least 8 characters)</span></label>
           <input id="pw" v-model="password" type="password" class="input" autocomplete="new-password" minlength="12" :aria-invalid="!!errors.password" />
           <p v-if="errors.password" class="field-error">{{ errors.password }}</p>
         </div>
         <div class="field"><label for="pw2">Repeat it</label><input id="pw2" v-model="confirmation" type="password" class="input" autocomplete="new-password" /></div>
-        <button type="submit" class="btn btn-primary" :disabled="busy || password.length < 12 || !confirmation" :aria-busy="busy">{{ busy ? 'Saving…' : 'Set password' }}</button>
+        <button type="submit" class="btn btn-primary" :disabled="busy || password.length < 8 || !confirmation" :aria-busy="busy">{{ busy ? 'Saving…' : 'Set password' }}</button>
       </form>
     </div>
   </div>

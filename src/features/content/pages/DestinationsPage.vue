@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, toRaw } from 'vue'
 import StatusLine from '@/components/ui/StatusLine.vue'
 import { errorMessage, fieldErrors } from '@/lib/api/client'
 import { formatDay } from '@/lib/format'
-import type { Destination } from '@/types/api'
+import type { Destination, Source } from '@/types/api'
+import SourcesEditor from '../components/SourcesEditor.vue'
+import MapPicker from '../components/MapPicker.vue'
 import { listDestinations, saveDestination } from '../services/content'
 
 const provinces = ['Koshi', 'Madhesh', 'Bagmati', 'Gandaki', 'Lumbini', 'Karnali', 'Sudurpashchim']
@@ -25,11 +27,13 @@ onMounted(load)
 
 const blank = { id: '', slug: '', name: '', province: '', district: '', summary: '', overview: '', elevation_m: '', latitude: '', longitude: '', photo_path: '', photo_alt: '', photo_credit: '', status: 'draft', last_confirmed_on: '' }
 const form = reactive({ ...blank })
+const sources = ref<Source[]>([])
 const editing = ref(false)
 const errors = ref<Record<string, string>>({})
 const saveError = ref<string | null>(null)
 function edit(d?: Destination) {
-  Object.assign(form, blank, d ? Object.fromEntries(Object.entries(d).map(([k, v]) => [k, v ?? ''])) : {})
+  Object.assign(form, blank, d ? Object.fromEntries(Object.entries(d).filter(([k]) => k !== 'sources').map(([k, v]) => [k, v ?? ''])) : {})
+  sources.value = structuredClone(toRaw(d?.sources ?? []))
   errors.value = {}
   saveError.value = null
   editing.value = true
@@ -39,7 +43,7 @@ async function save() {
   saveError.value = null
   const body = Object.fromEntries(Object.entries(form).filter(([k]) => k !== 'id' && k !== 'is_dev_seed' && k !== 'updated_at').map(([k, v]) => [k, v === '' ? null : v]))
   try {
-    await saveDestination(form.id || null, body)
+    await saveDestination(form.id || null, { ...body, sources: sources.value.map((s) => ({ ...s, publisher: s.publisher || null, url: s.url || null, accessed_on: s.accessed_on || null })) })
     editing.value = false
     await load()
   } catch (e) {
@@ -69,9 +73,11 @@ async function save() {
       <div class="field"><label for="d-elev">Elevation (m)</label><input id="d-elev" v-model="form.elevation_m" type="number" class="input" /></div>
       <div class="field"><label for="d-lat">Latitude</label><input id="d-lat" v-model="form.latitude" type="number" step="0.000001" class="input" /><p v-if="errors.latitude" class="field-error">{{ errors.latitude }}</p></div>
       <div class="field"><label for="d-lng">Longitude</label><input id="d-lng" v-model="form.longitude" type="number" step="0.000001" class="input" /><p v-if="errors.longitude" class="field-error">{{ errors.longitude }}</p></div>
+      <div class="md:col-span-3"><MapPicker :key="form.id || 'new'" v-model:lat="form.latitude" v-model:lng="form.longitude" /></div>
       <div class="field"><label for="d-ph">Photo path</label><input id="d-ph" v-model="form.photo_path" class="input" placeholder="/images/photos/name" /><p v-if="errors.photo_path" class="field-error">{{ errors.photo_path }}</p></div>
       <div class="field"><label for="d-alt">Photo description</label><input id="d-alt" v-model="form.photo_alt" class="input" /><p v-if="errors.photo_alt" class="field-error">{{ errors.photo_alt }}</p></div>
       <div class="field"><label for="d-cr">Photo credit and licence</label><input id="d-cr" v-model="form.photo_credit" class="input" /><p v-if="errors.photo_credit" class="field-error">{{ errors.photo_credit }}</p></div>
+      <SourcesEditor v-model="sources" class="md:col-span-3" :errors="errors" id-prefix="d-src" />
       <div class="flex gap-2 md:col-span-3"><button type="submit" class="btn btn-primary">Save</button><button type="button" class="btn btn-quiet" @click="editing = false">Cancel</button></div>
     </form>
     <StatusLine v-if="loading" state="loading" />
