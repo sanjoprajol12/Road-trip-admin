@@ -29,6 +29,20 @@ export const sectionSchemas: Record<string, Field[]> = {
       { key: 'text', label: 'Text', kind: 'textarea', max: 240 },
     ] },
   ],
+  planner: [
+    { key: 'heading', label: 'Heading', kind: 'text', max: 120 },
+    { key: 'intro', label: 'Introduction', kind: 'textarea', max: 400, optional: true },
+    { key: 'ids', label: 'Route shown as the example plan (none chosen: the newest with stretches)', kind: 'pick', source: 'routes', maxItems: 1 },
+  ],
+  tools: [
+    { key: 'heading', label: 'Heading', kind: 'text', max: 120 },
+    { key: 'intro', label: 'Introduction', kind: 'textarea', max: 400, optional: true },
+    { key: 'items', label: 'Tools (the icon follows the link)', kind: 'items', maxItems: 6, fields: [
+      { key: 'name', label: 'Name', kind: 'text', max: 40 },
+      { key: 'text', label: 'Text', kind: 'textarea', max: 240 },
+      link('cta', 'Link'),
+    ] },
+  ],
   featured_destinations: [
     { key: 'heading', label: 'Heading', kind: 'text', max: 80 },
     { key: 'link_label', label: 'Link text', kind: 'text', max: 40, optional: true },

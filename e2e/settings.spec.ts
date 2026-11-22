@@ -120,5 +120,7 @@ test('a mail password is stored but never shown again; a moderator pauses a ride
   await expect(page.getByText(/cannot contribute until/)).toBeVisible()
   await expect(page.getByRole('cell', { name: /Contributions paused until/ })).toBeVisible()
   expect(sql(`select count(*) from contribution_suspensions where user_id = '${rider}' and lifted_at is null`)).toBe('1')
+  sql(`delete from contributions where author_id = '${rider}'`)
+  sql(`delete from events where organizer_id = '${rider}'`)
   sql(`delete from users where id = '${rider}'`)
 })

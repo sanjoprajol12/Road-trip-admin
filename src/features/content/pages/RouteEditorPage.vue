@@ -97,7 +97,10 @@ const distanceMismatch = computed(() => segmentKm.value !== null && details.dist
 const addSeg = () => segs.value.push({ id: null, start_name: segs.value.at(-1)?.end_name ?? '', end_name: '', start_lat: '', start_lng: '', end_lat: '', end_lng: '', distance_km: '', estimated_hours: '', surface: 'unknown', notes: '' })
 
 const svc = reactive({ segment: '', kind: 'fuel', name: '', notes: '', status: 'draft', last_confirmed_on: '' })
+const addingService = ref(false)
 async function addService() {
+  if (addingService.value) return // service points have no unique field: a second request would be a real duplicate
+  addingService.value = true
   msg.value = null
   try {
     await createServicePoint({ route_segment_id: svc.segment, kind: svc.kind, name: svc.name, notes: svc.notes || null, status: svc.status, last_confirmed_on: svc.last_confirmed_on || null })
@@ -107,6 +110,8 @@ async function addService() {
     msg.value = 'Service point added.'
   } catch (e) {
     msg.value = errorMessage(e)
+  } finally {
+    addingService.value = false
   }
 }
 async function removeService(id: string) {
@@ -186,7 +191,7 @@ async function removeService(id: string) {
           <div class="field"><label for="svst">Status</label><select id="svst" v-model="svc.status" class="input"><option value="draft">Draft</option><option value="published">Published</option></select></div>
           <div class="field"><label for="svc">Last confirmed</label><input id="svc" v-model="svc.last_confirmed_on" type="date" class="input" /></div>
           <div class="field md:col-span-4"><label for="svno">Notes</label><input id="svno" v-model="svc.notes" class="input" /></div>
-          <button type="submit" class="btn btn-quiet" :disabled="!svc.segment || svc.name.length < 2">Add</button>
+          <button type="submit" class="btn btn-quiet" :disabled="addingService || !svc.segment || svc.name.length < 2" :aria-busy="addingService">{{ addingService ? 'Saving…' : 'Add' }}</button>
         </form>
       </section>
     </template>

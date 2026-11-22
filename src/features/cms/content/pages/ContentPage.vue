@@ -53,8 +53,10 @@ function open(e: CmsEntry | null) {
   editing.value = { id: e?.id ?? null }
 }
 const has = (k: CmsType['core'][number]) => current.value?.core.includes(k) ?? false
+const saving = ref(false)
 async function save() {
-  if (!current.value) return
+  if (!current.value || saving.value) return // a second click while the first request runs would create a second entry
+  saving.value = true
   errors.value = {}
   const iso = (v: string | null) => (v ? new Date(v).toISOString() : null)
   const blankToNull = (v: string | null) => (v === '' ? null : v)
@@ -67,6 +69,8 @@ async function save() {
   } catch (e) {
     errors.value = fieldErrors(e)
     if (!Object.keys(errors.value).length) errors.value = { _: errorMessage(e) }
+  } finally {
+    saving.value = false
   }
 }
 const removing = ref<CmsEntry | null>(null)
@@ -135,7 +139,7 @@ const statusLabel = { draft: 'Draft', published: 'Published', archived: 'Archive
         </div>
         <p v-if="!canPublish" class="text-xs text-muted">You can save drafts. Someone with publishing rights makes them public.</p>
         <div class="flex flex-wrap gap-2">
-          <button type="submit" class="btn btn-primary">Save</button>
+          <button type="submit" class="btn btn-primary" :disabled="saving" :aria-busy="saving">{{ saving ? 'Saving…' : 'Save' }}</button>
           <button v-if="publicPath(form) && form.slug" type="button" class="btn btn-quiet" @click="preview"><Eye class="size-4" aria-hidden="true" /> Preview on the website</button>
           <button type="button" class="btn btn-quiet" @click="editing = null">Close</button>
         </div>

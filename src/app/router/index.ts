@@ -78,6 +78,7 @@ const router = createRouter({
         { path: 'staff', name: 'staff', component: () => import('@/features/staff/pages/StaffPage.vue'), meta: { title: 'Staff', permission: 'users.view' } },
         { path: 'people', redirect: '/riders' },
         { path: 'account', name: 'account', component: () => import('@/features/profile/pages/StaffProfilePage.vue'), meta: { title: 'Your staff account' } },
+        { path: 'privacy', name: 'privacy', component: () => import('@/features/privacy/pages/PrivacyPage.vue'), meta: { title: 'Deletions and evidence', permission: ['users.deletions.view', 'moderation.evidence.view'] } },
         { path: 'audit', name: 'audit', component: () => import('@/features/audit/pages/AuditLogPage.vue'), meta: { title: 'Audit log', permission: 'audit.view' } },
         { path: 'cms/home', name: 'cms-home', component: () => import('@/features/cms/home/pages/HomeContentPage.vue'), meta: { title: 'Homepage', permission: 'cms.home.edit' } },
         { path: 'cms/menus', name: 'cms-menus', component: () => import('@/features/cms/menus/pages/MenusPage.vue'), meta: { title: 'Menus', permission: 'cms.menus.manage' } },

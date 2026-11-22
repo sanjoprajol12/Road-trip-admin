@@ -38,7 +38,10 @@ function edit(d?: Destination) {
   saveError.value = null
   editing.value = true
 }
+const saving = ref(false)
 async function save() {
+  if (saving.value) return // a second click while the first request runs would create a second destination
+  saving.value = true
   errors.value = {}
   saveError.value = null
   const body = Object.fromEntries(Object.entries(form).filter(([k]) => k !== 'id' && k !== 'is_dev_seed' && k !== 'updated_at').map(([k, v]) => [k, v === '' ? null : v]))
@@ -49,6 +52,8 @@ async function save() {
   } catch (e) {
     errors.value = fieldErrors(e)
     if (!Object.keys(errors.value).length) saveError.value = errorMessage(e)
+  } finally {
+    saving.value = false
   }
 }
 </script>
@@ -78,7 +83,7 @@ async function save() {
       <div class="field"><label for="d-alt">Photo description</label><input id="d-alt" v-model="form.photo_alt" class="input" /><p v-if="errors.photo_alt" class="field-error">{{ errors.photo_alt }}</p></div>
       <div class="field"><label for="d-cr">Photo credit and licence</label><input id="d-cr" v-model="form.photo_credit" class="input" /><p v-if="errors.photo_credit" class="field-error">{{ errors.photo_credit }}</p></div>
       <SourcesEditor v-model="sources" class="md:col-span-3" :errors="errors" id-prefix="d-src" />
-      <div class="flex gap-2 md:col-span-3"><button type="submit" class="btn btn-primary">Save</button><button type="button" class="btn btn-quiet" @click="editing = false">Cancel</button></div>
+      <div class="flex gap-2 md:col-span-3"><button type="submit" class="btn btn-primary" :disabled="saving" :aria-busy="saving">{{ saving ? 'Saving…' : 'Save' }}</button><button type="button" class="btn btn-quiet" @click="editing = false">Cancel</button></div>
     </form>
     <StatusLine v-if="loading" state="loading" />
     <StatusLine v-else-if="error" state="error" :message="error" @retry="load">Destinations could not be loaded.</StatusLine>

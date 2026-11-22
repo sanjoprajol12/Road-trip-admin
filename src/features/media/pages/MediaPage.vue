@@ -5,7 +5,7 @@ import StatusLine from '@/components/ui/StatusLine.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import { errorMessage, fieldErrors } from '@/lib/api/client'
 import { formatDay } from '@/lib/format'
-import { deleteMedia, listMedia, updateMedia, uploadMedia } from '../services/media'
+import { deleteMedia, getUploadState, listMedia, updateMedia, uploadMedia } from '../services/media'
 
 // Images for branding, pages and destinations. Owner rule: CC0, public domain or owner-supplied only,
 // each with a credit and, for photos, only of the place they show. The server re-encodes every file.
@@ -31,6 +31,9 @@ async function load() {
   }
 }
 onMounted(load)
+// Uploads can be paused (no durable storage in this environment, or paused by staff); browsing, editing and deleting continue.
+const uploadState = ref<{ enabled: boolean; message: string | null } | null>(null)
+onMounted(async () => (uploadState.value = await getUploadState().catch(() => null)))
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const form = reactive({ file: null as File | null, alt: '', credit: '', license: '' as License | '', source_url: '', place_note: '' })
@@ -96,7 +99,8 @@ const kb = (b: number) => `${Math.round(b / 1024)} KB`
     <p class="mt-2 max-w-2xl text-sm text-muted">Only CC0, public-domain or owner-supplied images, each with a credit. Photos may show only the place they are used for. Location data is removed from every file.</p>
     <p v-if="done" class="mt-4 text-sm text-success" role="status">{{ done }}</p>
 
-    <form class="mt-6 grid max-w-2xl gap-4 rounded-md border border-line bg-surface p-5" novalidate @submit.prevent="upload">
+    <p v-if="uploadState && !uploadState.enabled" class="mt-6 max-w-2xl rounded-md border border-line bg-surface p-5 text-sm" role="status">{{ uploadState.message }} Existing images can still be used, edited and removed.</p>
+    <form v-else class="mt-6 grid max-w-2xl gap-4 rounded-md border border-line bg-surface p-5" novalidate @submit.prevent="upload">
       <h2 class="font-semibold">Add an image</h2>
       <p v-if="errors._" class="rounded-md border border-danger/40 bg-crimson-wash px-4 py-3 text-sm text-danger" role="alert">{{ errors._ }}</p>
       <div class="field"><label for="mf">Image file</label><input id="mf" ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp" class="text-sm" :aria-invalid="!!errors.file" @change="form.file = ($event.target as HTMLInputElement).files?.[0] ?? null" /><p v-if="errors.file" class="field-error">{{ errors.file }}</p></div>

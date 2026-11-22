@@ -33,7 +33,10 @@ function edit(g?: Guide) {
   errors.value = {}
   editing.value = true
 }
+const saving = ref(false)
 async function save() {
+  if (saving.value) return // a second click while the first request runs would create a second guide
+  saving.value = true
   errors.value = {}
   const { id, ...body } = form
   try {
@@ -44,6 +47,8 @@ async function save() {
   } catch (e) {
     errors.value = fieldErrors(e)
     if (!Object.keys(errors.value).length) msg.value = errorMessage(e)
+  } finally {
+    saving.value = false
   }
 }
 async function publish(g: Guide) {
@@ -70,7 +75,7 @@ async function publish(g: Guide) {
       <div class="field"><label for="g-c">Category</label><select id="g-c" v-model="form.category" class="input"><option v-for="(l, c) in categories" :key="c" :value="c">{{ l }}</option></select></div>
       <div class="field md:col-span-3"><label for="g-b">Guide text</label><textarea id="g-b" v-model="form.body" class="input" rows="10" /><p v-if="errors.body" class="field-error">{{ errors.body }}</p></div>
       <div class="field md:col-span-3"><label for="g-src">Sources</label><textarea id="g-src" v-model="form.sources" class="input" rows="3" placeholder="Where this guidance comes from" /><p v-if="errors.sources" class="field-error">{{ errors.sources }}</p></div>
-      <div class="flex gap-2 md:col-span-3"><button type="submit" class="btn btn-primary">Save</button><button type="button" class="btn btn-quiet" @click="editing = false">Cancel</button></div>
+      <div class="flex gap-2 md:col-span-3"><button type="submit" class="btn btn-primary" :disabled="saving" :aria-busy="saving">{{ saving ? 'Saving…' : 'Save' }}</button><button type="button" class="btn btn-quiet" @click="editing = false">Cancel</button></div>
     </form>
     <StatusLine v-if="loading" state="loading" />
     <StatusLine v-else-if="error" state="error" :message="error" @retry="load">Guides could not be loaded.</StatusLine>

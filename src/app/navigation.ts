@@ -1,4 +1,4 @@
-import { Landmark, BadgeCheck, CalendarDays, FileText, House, Inbox, Megaphone, Menu, Images, KeyRound, LayoutDashboard, MapPin, MessageSquareWarning, Route, ScrollText, Settings, ShieldHalf, UserCog, Users } from 'lucide-vue-next'
+import { Landmark, BadgeCheck, CalendarDays, FileText, House, Inbox, Megaphone, Menu, Images, KeyRound, LayoutDashboard, MapPin, MessageSquareWarning, Route, ScrollText, Settings, ShieldHalf, UserCog, UserX, Users } from 'lucide-vue-next'
 
 import { settingsGroups } from '@/features/settings/settingsGroups'
 
@@ -24,6 +24,7 @@ export const navItems = [
   { to: '/riders', name: 'riders', label: 'Riders', icon: Users, permission: 'users.view' },
   { to: '/staff', name: 'staff', label: 'Staff', icon: UserCog, permission: 'users.view' },
   { to: '/roles', name: 'roles', label: 'Roles', icon: KeyRound, permission: 'roles.manage' },
+  { to: '/privacy', name: 'privacy', label: 'Deletions and evidence', icon: UserX, permission: ['users.deletions.view', 'moderation.evidence.view'] },
   { to: '/audit', name: 'audit', label: 'Audit log', icon: ScrollText, permission: 'audit.view' },
   { to: '/settings', name: 'settings', label: 'Settings', icon: Settings, permission: settingsPermissions },
 ] as const

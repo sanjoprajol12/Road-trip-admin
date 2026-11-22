@@ -7,6 +7,8 @@ export interface StorageProbe { ok: boolean; disk: string; error: string | null;
 export const getGroup = async (group: string) => (await api.get<{ data: SettingsValues }>(`/admin/settings/${group}`)).data.data
 export const saveGroup = async (group: string, values: SettingsValues) => (await api.put<{ data: SettingsValues }>(`/admin/settings/${group}`, values)).data.data
 export const testStorage = async () => (await api.post<StorageProbe>('/admin/settings/storage/test')).data
+export interface UploadStatus { allowed: boolean; reason: string | null; disk: string; driver: string | null; environment: string }
+export const getUploadStatus = async () => (await api.get<{ data: UploadStatus }>('/admin/settings/storage/upload-status')).data.data
 export const clearCache = async () => (await api.post<{ message: string }>('/admin/cache/clear')).data.message
 export const previewLink = async () => (await api.post<{ url: string }>('/admin/preview-token')).data.url
 export interface ProbeResult { ok: boolean; message: string; status?: number | null }
