@@ -1,0 +1,35 @@
+/* Design tokens from docs/design/DESIGN_SYSTEM.md (approved 2026-11-27). Copied per app, never shared (TD-01). Admin uses Barlow only (DESIGN_SYSTEM §11).
+   Tailwind's default palette is removed so only these colours exist. */
+@theme {
+  --color-*: initial;
+  --color-page: #ffffff;
+  --color-surface-subtle: #f5f6f7;
+  --color-surface-sunken: #eceef0;
+  --color-line: #e1e4e8;
+  --color-line-strong: #7b8189;
+  --color-ink: #16181b;
+  --color-muted: #575c63;
+  --color-night: #121417;
+  --color-night-text: #ecedef;
+  --color-night-muted: #a4a9b0;
+  --color-crimson: #a3202e;
+  --color-crimson-deep: #861a26;
+  --color-crimson-wash: #f8e8e7;
+  --color-marigold: #e2a32c;
+  --color-success: #2f6b3d;
+  --color-warning: #8a5a00;
+  --color-danger: #b42318;
+  --color-info: #2a5b8c;
+  --color-white: #ffffff;
+
+  --font-*: initial;
+  --font-sans: 'Barlow', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Barlow', ui-sans-serif, system-ui, sans-serif;
+
+  --radius-*: initial;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+
+  --shadow-*: initial;
+  --shadow-overlay: 0 8px 24px rgb(18 20 23 / 0.12), 0 1px 2px rgb(18 20 23 / 0.08);
+}

@@ -1,0 +1,15 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+*.log
+.vite/
+test-results/
+playwright-report/
+blob-report/
+# Real environment files are never committed; only the *.example templates are.
+.env
+.env.*
+!.env.example
+!.env.*.example
+api/

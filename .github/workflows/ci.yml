@@ -1,0 +1,66 @@
+# This repository's checks, then its browser tests against a real API. The API comes from the backend
+# repository (Road-trip-web, develop) and is reached over HTTP only, exactly as in production.
+# If Road-trip-web is private, add a repository secret BACKEND_REPO_TOKEN (fine-grained, read-only contents).
+name: ci
+on:
+  push:
+  pull_request:
+permissions: { contents: read }
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version-file: .nvmrc, cache: npm }
+      - run: npm ci
+      - run: npm run check
+
+  e2e:
+    needs: check
+    runs-on: ubuntu-24.04
+    services:
+      db:
+        image: postgis/postgis:18-3.6
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ['5442:5432']
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      PGHOST: localhost
+      PGPORT: 5442
+      PGPASSWORD: postgres
+      MRN_OWNER_PASSWORD: ci-owner-only
+      MRN_APP_PASSWORD: ci-app-only
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          repository: sanjoprajol12/Road-trip-web
+          ref: develop
+          path: api
+          token: ${{ secrets.BACKEND_REPO_TOKEN || github.token }}
+      - uses: actions/setup-node@v5
+        with: { node-version-file: .nvmrc }
+      - name: Start the API (backend repository, E2E database)
+        working-directory: api
+        run: |
+          bash database/init.sh
+          cat > .env.e2e <<ENV
+          NODE_ENV=production
+          PORT=4001
+          LOG_LEVEL=warn
+          DATABASE_URL=postgres://mrn_app:ci-app-only@localhost:5442/myridenepal_e2e
+          APP_URL=http://localhost:5273
+          ADMIN_URL=http://localhost:5274
+          ENV
+          npm ci && npm run build
+          nohup npm run start:e2e > api.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:4001/health/ready && exit 0; sleep 1; done
+          cat api.log; exit 1
+      - name: Browser tests (API over HTTP)
+        env: { CI: 'true', E2E_API_URL: 'http://localhost:4001' }
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium firefox webkit
+          npx playwright test
